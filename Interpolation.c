@@ -31,6 +31,25 @@ void print(struct Data **array, int size)
     printf("\n\n");
 }
 
+bool equalOrUnequal(struct Data **arr, int size)
+{
+    bool equal = true;
+    int xValue1 = 0;
+    int xValue2 = 1;
+    float difference = arr[xValue2][0].dataValue - arr[xValue1][0].dataValue;
+    while (xValue2 < size)
+    {
+        if (difference != arr[xValue2][0].dataValue - arr[xValue1][0].dataValue)
+        {
+            equal = false;
+            break;
+        }
+        xValue1++;
+        xValue2++;
+    }
+    return equal;
+}
+
 void setValues(int index, float dataValue, struct Data *arr)
 {
     arr->index = index;
@@ -46,7 +65,7 @@ struct Data *colToRow(struct Data **arr, int col, int row)
     }
     return array;
 }
-void subtract(struct Data *arr, struct Data **array, int col, int size)
+void subtractEqual(struct Data *arr, struct Data **array, int col, int size)
 {
     int yValue1 = 0;
     int yValue2 = 1;
@@ -58,7 +77,22 @@ void subtract(struct Data *arr, struct Data **array, int col, int size)
         yValue2++;
     }
 }
-void createTable(struct Data **arr, int rows, int col)
+void subtractUnequal(struct Data *arr, struct Data **array, int col, int size, int xValue1, int xValue2)
+{
+    int yValue1 = 0;
+    int yValue2 = 1;
+    while (yValue2 <= size)
+    {
+        array[yValue1][col].dataValue = (arr[yValue2].dataValue - arr[yValue1].dataValue) /
+                                        (array[xValue2][0].dataValue - array[xValue1][0].dataValue);
+        array[yValue1][col].index = yValue1;
+        yValue1++;
+        yValue2++;
+        xValue2++;
+        xValue1++;
+    }
+}
+void createTableEqual(struct Data **arr, int rows, int col)
 {
     int i = 1;
     for (; i < col; i++)
@@ -66,7 +100,7 @@ void createTable(struct Data **arr, int rows, int col)
         struct Data *array = (struct Data *)malloc(sizeof(struct Data) * (rows));
         array = colToRow(arr, i, rows);
 
-        subtract(array, arr, i + 1, rows - i);
+        subtractEqual(array, arr, i + 1, rows - i);
     }
 }
 
@@ -80,6 +114,20 @@ void setArrayTo0(struct Data **array, int size)
         {
             array[i][j].dataValue = INT_MIN;
         }
+    }
+}
+void createTableUnequal(struct Data **arr, int rows, int col)
+{
+    int i = 1;
+    int xValue1 = 0;
+    int xValue2 = 1;
+    for (; i < col; i++)
+    {
+        struct Data *array = (struct Data *)malloc(sizeof(struct Data) * (rows));
+        array = colToRow(arr, i, rows);
+
+        subtractUnequal(array, arr, i + 1, rows - i, xValue1, xValue2);
+        xValue2++;
     }
 }
 float *generatePatternForPNF(float p, int size)
@@ -169,6 +217,35 @@ float newtonBackward(struct Data **array, int row, int col, float interpolateVal
     }
     return answer;
 }
+float *generatePatternForNFDD(float interpolateValue, int size, struct Data **arr)
+{
+    int i = 0;
+    float *xValueArray = (float *)malloc(sizeof(float) * size);
+    for (; i < size; i++)
+    {
+        float current = interpolateValue - arr[i][0].dataValue;
+        if (i - 1 >= 0)
+        {
+            current = current * xValueArray[i - 1];
+        }
+        xValueArray[i] = current;
+    }
+    return xValueArray;
+}
+
+float nfDividedDifference(struct Data **array, int row, int col, float interpolateValue)
+{
+    float *arr = generatePatternForNFDD(interpolateValue, row, array);
+    float answer = array[0][1].dataValue;
+    int i = 2;
+    int index = 0;
+    for (; i < col; i++)
+    {
+        answer += (arr[index] * array[0][i].dataValue);
+        index++;
+    }
+    return answer;
+}
 
 int main()
 {
@@ -199,12 +276,27 @@ int main()
     printf("%s", "Enter the value on which you want to interpolate: ");
     scanf("%f", &interpolateValue);
     print(obj, totalDataSet);
-    createTable(obj, totalDataSet, totalDataSet + 1);
-    print(obj, totalDataSet);
-    float nfAnswer = newtonForward(obj, totalDataSet, totalDataSet + 1, interpolateValue);
-    printf("%f\n", nfAnswer);
-    float nbAnswer = newtonBackward(obj, totalDataSet, totalDataSet + 1, interpolateValue);
-    printf("%f\n", nbAnswer);
+    bool h = equalOrUnequal(obj, totalDataSet);
+    if (h == true)
+    {
+        system("clear");
+        printf("%s", "Equal Interval\n");
+        createTableEqual(obj, totalDataSet, totalDataSet + 1);
+        print(obj, totalDataSet);
+        float nfAnswer = newtonForward(obj, totalDataSet, totalDataSet + 1, interpolateValue);
+        printf("%f\n", nfAnswer);
+        float nbAnswer = newtonBackward(obj, totalDataSet, totalDataSet + 1, interpolateValue);
+        printf("%f\n", nbAnswer);
+    }
+    else
+    {
+        system("clear");
+        printf("%s", "Unequal Interval\n");
+        createTableUnequal(obj, totalDataSet, totalDataSet + 1);
+        print(obj, totalDataSet);
+        float nfddAnswer = nfDividedDifference(obj, totalDataSet, totalDataSet + 1, interpolateValue);
+        printf("%f\n", nfddAnswer);
+    }
 
     return 0;
 }
