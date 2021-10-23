@@ -19,7 +19,7 @@ void print(struct Data **array, int size)
         {
             if (array[i][j].dataValue != INT_MIN)
             {
-                printf("%f  ", array[i][j].dataValue);
+                printf("%15f", array[i][j].dataValue);
             }
             else
             {
@@ -28,9 +28,7 @@ void print(struct Data **array, int size)
         }
         printf("\n");
     }
-    printf("\n\n");
 }
-
 bool equalOrUnequal(struct Data **arr, int size)
 {
     bool equal = true;
@@ -130,35 +128,22 @@ void createTableUnequal(struct Data **arr, int rows, int col)
         xValue2++;
     }
 }
-float *generatePatternForPNF(float p, int size)
+float *generatePatternForP(float p, int size, bool check)
 {
     int i = 1;
+    float current = 0;
     float *pValueArray = (float *)malloc(sizeof(float) * size);
     int index = 0;
     for (; i <= size; i++)
     {
-        float current = p - i;
-        if (index - 1 >= 0)
+        if (check == false)
         {
-            current = current * pValueArray[index - 1];
+            current = p - i;
         }
         else
         {
-            current = current * p;
+            current = p + i;
         }
-        pValueArray[index] = current;
-        index++;
-    }
-    return pValueArray;
-}
-float *generatePatternForPNB(float p, int size)
-{
-    int i = 1;
-    float *pValueArray = (float *)malloc(sizeof(float) * size);
-    int index = 0;
-    for (; i <= size; i++)
-    {
-        float current = p + i;
         if (index - 1 >= 0)
         {
             current = current * pValueArray[index - 1];
@@ -189,7 +174,7 @@ float newtonForward(struct Data **array, int row, int col, float interpolateValu
 {
     float diff = array[1][0].dataValue - array[0][0].dataValue;
     float p = (interpolateValue - array[0][0].dataValue) / diff;
-    float *arr = generatePatternForPNF(p, row - 2);
+    float *arr = generatePatternForP(p, row - 2, false);
     int *farr = factorial(row - 2);
     float answer = array[0][1].dataValue + p * array[0][2].dataValue;
     int i = 3;
@@ -205,7 +190,7 @@ float newtonBackward(struct Data **array, int row, int col, float interpolateVal
 {
     float diff = array[1][0].dataValue - array[0][0].dataValue;
     float p = (interpolateValue - array[row - 1][0].dataValue) / diff;
-    float *arr = generatePatternForPNB(p, row - 2);
+    float *arr = generatePatternForP(p, row - 2, true);
     int *farr = factorial(row - 2);
     float answer = array[row - 1][1].dataValue + p * array[row - 2][2].dataValue;
     int i = 3;
@@ -217,25 +202,44 @@ float newtonBackward(struct Data **array, int row, int col, float interpolateVal
     }
     return answer;
 }
-float *generatePatternForNFDD(float interpolateValue, int size, struct Data **arr)
+float *generatePatternForUnequal(float interpolateValue, int size, struct Data **arr, int exclude)
 {
     int i = 0;
     float *xValueArray = (float *)malloc(sizeof(float) * size);
+    int index = 0;
     for (; i < size; i++)
     {
-        float current = interpolateValue - arr[i][0].dataValue;
-        if (i - 1 >= 0)
+        if (i != exclude)
         {
-            current = current * xValueArray[i - 1];
+            float current = interpolateValue - arr[i][0].dataValue;
+            if (index - 1 >= 0)
+            {
+                current = current * xValueArray[index - 1];
+            }
+            xValueArray[index] = current;
+            index++;
         }
-        xValueArray[i] = current;
     }
     return xValueArray;
 }
 
+float lagrange(struct Data **array, int row, float interpolateValue)
+{
+
+    float answer = 0;
+    int i = 0;
+    for (; i < row; i++)
+    {
+        float *numerator = generatePatternForUnequal(interpolateValue, row, array, i);
+        float *denominator = generatePatternForUnequal(array[i][0].dataValue, row, array, i);
+        answer += ((numerator[row - 2] / denominator[row - 2]) * array[i][1].dataValue);
+    }
+    return answer;
+}
+
 float nfDividedDifference(struct Data **array, int row, int col, float interpolateValue)
 {
-    float *arr = generatePatternForNFDD(interpolateValue, row, array);
+    float *arr = generatePatternForUnequal(interpolateValue, row, array, -1);
     float answer = array[0][1].dataValue;
     int i = 2;
     int index = 0;
@@ -245,6 +249,205 @@ float nfDividedDifference(struct Data **array, int row, int col, float interpola
         index++;
     }
     return answer;
+}
+void printLine()
+{
+    int i = 0;
+    for (; i < 50; i++)
+    {
+        printf("-");
+    }
+    printf("\n");
+}
+
+void printLineTable()
+{
+    int i = 0;
+    for (; i < 100; i++)
+    {
+        printf("-");
+    }
+    printf("\n");
+}
+
+void setIndex(struct Data **array, int smallestPValue, int row, int col)
+{
+    int j = 0;
+    for (; j < col; j++)
+    {
+        int i = 0;
+        int currentIndex = smallestPValue;
+        for (; i < row; i++)
+        {
+            array[i][j].index = currentIndex;
+            currentIndex++;
+        }
+    }
+}
+int findX0Index(struct Data **array, int row, float interpolateValue, float lowerlimit, float upperlimit, float *p)
+{
+    float diff = array[1][0].dataValue - array[0][0].dataValue;
+    int i = 0;
+    for (; i < row; i++)
+    {
+        *p = (interpolateValue - array[i][0].dataValue) / diff;
+        if (*p >= lowerlimit && *p <= upperlimit)
+        {
+            return i;
+        }
+    }
+    return 0;
+}
+
+float returnYValue(struct Data **arr, int row, int col, int arrIndex, bool *breakLoop)
+{
+    int i = 0;
+    for (; i < row - col + 1; i++)
+    {
+        if (arr[i][col].index == arrIndex)
+        {
+            *breakLoop = false;
+            return arr[i][col].dataValue;
+        }
+    }
+    *breakLoop = true;
+    return -1;
+}
+
+float *generatePatternForGF(float p, int size, bool check)
+{
+    int i = 0;
+    bool alternate = true;
+    int minus = 1;
+    int plus = 1;
+    float *pValueArray = (float *)malloc(sizeof(float) * size);
+    int index = 0;
+    float current = 0;
+    for (; i < size; i++)
+    {
+        if (alternate == check)
+        {
+            current = p - minus;
+            minus++;
+            if (check == false)
+            {
+                alternate = true;
+            }
+            else
+            {
+                alternate = false;
+            }
+        }
+        else
+        {
+            current = p + plus;
+            plus++;
+            if (check == false)
+            {
+                alternate = false;
+            }
+            else
+            {
+                alternate = true;
+            }
+        }
+        if (index - 1 >= 0)
+        {
+            current = current * pValueArray[index - 1];
+        }
+        else
+        {
+            current = current * p;
+        }
+        pValueArray[index] = current;
+        index++;
+    }
+    return pValueArray;
+}
+
+float gaussForward(struct Data **array, int row, int col, float interpolateValue)
+{
+    float p = 0;
+    bool breakLoop = false;
+    int cindex = -1;
+    int count = 0;
+    int index = findX0Index(array, row, interpolateValue, 0, 1, &p);
+    setIndex(array, -1 * index, row, col);
+    float *pArr = generatePatternForGF(p, row - 2, true);
+    int *farr = factorial(row - 2);
+    float answer = returnYValue(array, row, 1, 0, &breakLoop);
+    if (breakLoop == true)
+    {
+        return 0;
+    }
+    float temp = p * returnYValue(array, row, 2, 0, &breakLoop);
+    if (breakLoop == true)
+    {
+        return answer;
+    }
+    answer += temp;
+    int i = 3;
+    index = 0;
+    for (; i < col && breakLoop == false; i++)
+    {
+        temp = returnYValue(array, row, i, cindex, &breakLoop);
+        count++;
+        if (count % 2 == 0)
+        {
+            cindex = cindex - 1;
+        }
+        if (breakLoop == true)
+        {
+            return answer;
+        }
+        answer += temp * pArr[index] / farr[index];
+        index++;
+    }
+    return answer;
+}
+
+float gaussBackward(struct Data **array, int row, int col, float interpolateValue)
+{
+    float p = 0;
+    bool breakLoop = false;
+    int cindex = -1;
+    int count = 1;
+    int index = findX0Index(array, row, interpolateValue, -1, 0, &p);
+    setIndex(array, -1 * index, row, col);
+    float *pArr = generatePatternForGF(p, row - 2, false);
+    int *farr = factorial(row - 2);
+    float answer = returnYValue(array, row, 1, 0, &breakLoop);
+    if (breakLoop == true)
+    {
+        return 0;
+    }
+    float temp = p * returnYValue(array, row, 2, -1, &breakLoop);
+    if (breakLoop == true)
+    {
+        return answer;
+    }
+    answer += temp;
+    int i = 3;
+    index = 0;
+    for (; i < col && breakLoop == false; i++)
+    {
+        temp = returnYValue(array, row, i, cindex, &breakLoop);
+        count++;
+        if (count % 2 == 0)
+        {
+            cindex = cindex - 1;
+        }
+        if (breakLoop == true)
+        {
+            return answer;
+        }
+        answer += temp * pArr[index] / farr[index];
+        index++;
+    }
+    return answer;
+}
+float sterling(struct Data **array, int row, int col, float interpolateValue)
+{
 }
 
 int main()
@@ -280,22 +483,48 @@ int main()
     if (h == true)
     {
         system("clear");
-        printf("%s", "Equal Interval\n");
+        printLineTable();
         createTableEqual(obj, totalDataSet, totalDataSet + 1);
         print(obj, totalDataSet);
+        printLineTable();
+        printf("\n\n");
+        printf("%s", "Equal Interval Formulas\n");
+        printLine();
         float nfAnswer = newtonForward(obj, totalDataSet, totalDataSet + 1, interpolateValue);
-        printf("%f\n", nfAnswer);
+        printf("%s %f\n\n", "Newton Forward Difference Formula:  ", nfAnswer);
+        printLine();
         float nbAnswer = newtonBackward(obj, totalDataSet, totalDataSet + 1, interpolateValue);
-        printf("%f\n", nbAnswer);
+        printf("%s %f\n\n", "Newton Backward Difference Formula: ", nbAnswer);
+        printLine();
+        float lagrangeAnswer = lagrange(obj, totalDataSet, interpolateValue);
+        printf("%s %f\n\n", "Lagrange Formula:                   ", lagrangeAnswer);
+        printLine();
+        float gfAnswer = gaussForward(obj, totalDataSet, totalDataSet + 1, interpolateValue);
+        printf("%s %f\n\n", "Gauss Forward Difference Formula:   ", gfAnswer);
+        printLine();
+        float gbAnswer = gaussBackward(obj, totalDataSet, totalDataSet + 1, interpolateValue);
+        printf("%s %f\n\n", "Gauss Backward Difference Formula:  ", gbAnswer);
+        printLine();
+        // float sAnswer=sterling(obj,totalDataSet,totalDataSet+1,interpolateValue);
+        // printf("%s %f\n\n","Sterling Formula:                   ",sAnswer);
+        // printLine();
     }
     else
     {
         system("clear");
-        printf("%s", "Unequal Interval\n");
+        printLineTable();
         createTableUnequal(obj, totalDataSet, totalDataSet + 1);
         print(obj, totalDataSet);
+        printLineTable();
+        printf("\n\n");
+        printf("%s", "Unequal Interval Formulas\n");
+        printLine();
         float nfddAnswer = nfDividedDifference(obj, totalDataSet, totalDataSet + 1, interpolateValue);
-        printf("%f\n", nfddAnswer);
+        printf("%s %f\n\n", "Newton Divided Difference Formula: ", nfddAnswer);
+        printLine();
+        float lagrangeAnswer = lagrange(obj, totalDataSet, interpolateValue);
+        printf("%s %f\n\n", "Lagrange Formula:                  ", lagrangeAnswer);
+        printLine();
     }
 
     return 0;
